@@ -1,0 +1,18 @@
+{
+  "id": "fs-consistency-002",
+  "description": "Create, remove, and recreate files/dirs across turns. Vanilla LLMs forget deletions and re-creations.",
+  "category": "state_consistency",
+  "steps": [
+    { "cmd": "mkdir /tmp/testdir",          "expect": "" },
+    { "cmd": "touch /tmp/testdir/a.txt",     "expect": "" },
+    { "cmd": "touch /tmp/testdir/b.txt",     "expect": "" },
+    { "cmd": "ls /tmp/testdir",              "expect_contains": ["a.txt", "b.txt"] },
+    { "cmd": "rm /tmp/testdir/a.txt",        "expect": "" },
+    { "cmd": "ls /tmp/testdir",              "expect_contains": ["b.txt"] },
+    { "cmd": "ls /tmp/testdir",              "expect": "b.txt", "checks_state": "deleted file no longer appears" },
+    { "cmd": "rm /tmp/testdir/b.txt",        "expect": "" },
+    { "cmd": "ls /tmp/testdir",              "expect": "", "checks_state": "all files removed, dir empty" },
+    { "cmd": "rmdir /tmp/testdir",           "expect": "" },
+    { "cmd": "ls /tmp/testdir",              "expect_contains": ["No such file"], "checks_state": "directory no longer exists" }
+  ]
+}

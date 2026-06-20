@@ -1,0 +1,24 @@
+{
+  "id": "cd-pwd-001",
+  "description": "Directory tracking across cd and pwd. Vanilla LLMs lose cwd after multi-turn navigation.",
+  "category": "state_consistency",
+  "steps": [
+    { "cmd": "cd /",                         "expect": "" },
+    { "cmd": "pwd",                          "expect": "/", "checks_state": "cwd is / after cd /" },
+    { "cmd": "cd /var",                      "expect": "" },
+    { "cmd": "pwd",                          "expect": "/var", "checks_state": "cwd is /var" },
+    { "cmd": "cd ..",                        "expect": "" },
+    { "cmd": "pwd",                          "expect": "/", "checks_state": "cwd is / after cd .." },
+    { "cmd": "cd /tmp",                      "expect": "" },
+    { "cmd": "pwd",                          "expect": "/tmp" },
+    { "cmd": "mkdir /tmp/subdir",            "expect": "" },
+    { "cmd": "cd /tmp/subdir",               "expect": "" },
+    { "cmd": "pwd",                          "expect": "/tmp/subdir" },
+    { "cmd": "cd /tmp",                      "expect": "" },
+    { "cmd": "pwd",                          "expect": "/tmp" },
+    { "cmd": "cd subdir",                    "expect": "" },
+    { "cmd": "pwd",                          "expect": "/tmp/subdir" },
+    { "cmd": "cd /nonexistent_path",         "expect_contains": ["No such file"] },
+    { "cmd": "pwd",                          "expect": "/tmp/subdir", "checks_state": "cwd unchanged after failed cd" }
+  ]
+}

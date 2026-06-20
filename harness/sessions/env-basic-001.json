@@ -1,0 +1,19 @@
+{
+  "id": "env-basic-001",
+  "description": "Environment variables: echo $VAR, export. Vanilla LLMs frequently forget env state across turns.",
+  "category": "state_consistency",
+  "steps": [
+    { "cmd": "echo $HOME",                   "expect": "/root" },
+    { "cmd": "echo $USER",                   "expect": "root" },
+    { "cmd": "export MYVAR=hello",           "expect": "" },
+    { "cmd": "echo $MYVAR",                  "expect": "hello", "checks_state": "exported variable persists" },
+    { "cmd": "echo $MYVAR",                  "expect": "hello", "checks_state": "variable still set after unrelated command" },
+    { "cmd": "export MYVAR=world",           "expect": "" },
+    { "cmd": "echo $MYVAR",                  "expect": "world", "checks_state": "variable updated after re-export" },
+    { "cmd": "export COUNT=42",              "expect": "" },
+    { "cmd": "echo ${COUNT}",                "expect": "42", "checks_state": "multiple vars coexist" },
+    { "cmd": "echo $HOME/$MYVAR",            "expect": "/root/world" },
+    { "cmd": "unset MYVAR",                  "expect": "" },
+    { "cmd": "echo $MYVAR",                  "expect": "", "checks_state": "variable unset, output empty" }
+  ]
+}

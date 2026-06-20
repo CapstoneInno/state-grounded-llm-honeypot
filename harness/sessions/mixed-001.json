@@ -1,0 +1,27 @@
+{
+  "id": "mixed-001",
+  "description": "Longer mixed session combining FS ops, cd/pwd, env, and echo to simulate a real attacker flow.",
+  "category": "state_consistency",
+  "steps": [
+    { "cmd": "id",                           "expect_contains": ["uid"] },
+    { "cmd": "hostname",                     "expect": "svr04" },
+    { "cmd": "whoami",                       "expect": "root" },
+    { "cmd": "cd /tmp",                      "expect": "" },
+    { "cmd": "pwd",                          "expect": "/tmp" },
+    { "cmd": "mkdir /tmp/exploit",           "expect": "" },
+    { "cmd": "cd /tmp/exploit",              "expect": "" },
+    { "cmd": "pwd",                          "expect": "/tmp/exploit" },
+    { "cmd": "touch payload.sh",             "expect": "" },
+    { "cmd": "echo '#!/bin/bash' > payload.sh", "expect": "" },
+    { "cmd": "chmod +x payload.sh",          "expect": "" },
+    { "cmd": "ls -la",                       "expect_contains": ["payload.sh", "-rwx", "-r-x"] },
+    { "cmd": "export SECRET=topsecret",      "expect": "" },
+    { "cmd": "echo $SECRET",                 "expect": "topsecret", "checks_state": "env var persists" },
+    { "cmd": "cd /tmp",                      "expect": "" },
+    { "cmd": "pwd",                          "expect": "/tmp" },
+    { "cmd": "ls",                           "expect_contains": ["exploit"], "checks_state": "created dir visible from parent" },
+    { "cmd": "echo $SECRET",                 "expect": "topsecret", "checks_state": "env var survives cd" },
+    { "cmd": "rm -rf /tmp/exploit",          "expect": "" },
+    { "cmd": "ls /tmp/exploit",              "expect_contains": ["No such file"], "checks_state": "dir removed after rm -rf" }
+  ]
+}
