@@ -98,13 +98,16 @@ cp .env.example .env
 docker compose up --build middleware   # runs the demo in a container
 ```
 
-Full stack (Cowrie + Ollama + middleware) lands in later weeks:
+Run Cowrie with the local LLM (Ollama):
 
 ```bash
 cp .env.example .env
-docker compose up --build              # cowrie + ollama + middleware
-# the model is pulled with `ollama pull` at setup — weights are NOT in git
+bash scripts/setup.sh        # starts Ollama, pulls the model, launches Cowrie
+ssh -p 2222 root@localhost   # connect as an "attacker" (any password works)
 ```
+
+The model is pulled with `ollama pull` at setup — weights are NOT in git. See
+[`cowrie/README.md`](cowrie/README.md) for details and the fork step.
 
 ---
 

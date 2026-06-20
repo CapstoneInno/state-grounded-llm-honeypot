@@ -1,28 +1,59 @@
-# Cowrie (fork)
+# Cowrie + Ollama
 
-This directory holds our **fork of [Cowrie](https://github.com/cowrie/cowrie)**,
-the SSH/Telnet honeypot, including its experimental LLM backend. The
-state-tracking middleware integrates directly into Cowrie's LLM command flow.
+This is the **target product** for our Industrial contribution: the
+[Cowrie](https://github.com/cowrie/cowrie) SSH/Telnet honeypot, running with its
+**experimental LLM backend pointed at a local Ollama**. Our state-tracking
+middleware plugs into this LLM command flow in Weeks 2-4.
 
-## Week 1 status
+## What's wired up
 
-The fork is vendored here during Week 1. Until it is, `Dockerfile` pulls the
-upstream `cowrie/cowrie` image so the Compose stack stays valid end-to-end.
+- `Dockerfile` — official Cowrie image with our config baked in.
+- `etc/cowrie.cfg` — enables `backend = llm` and points it at the `ollama`
+  service (`host = http://ollama:11434`, `path = /v1/chat/completions`,
+  `model = qwen2.5:3b`). JSON event log is on (the stream the dashboard reads).
 
-## Setup (Week 1 task)
+Cowrie's LLM backend speaks the OpenAI-compatible API; Ollama serves one and
+ignores the API key, so any non-empty `api_key` works.
+
+## Run it (on your machine — needs Docker + Ollama weights)
+
+From the repo root:
 
 ```bash
-# from the repo root
-git submodule add https://github.com/cowrie/cowrie cowrie   # or vendor a fork
-# then point cowrie/Dockerfile at the local build (see TODO in that file)
+cp .env.example .env
+bash scripts/setup.sh        # starts Ollama, pulls the model, launches Cowrie
 ```
 
-## Where our contribution plugs in
+Then connect as an "attacker":
 
-- **Weeks 2-3:** the deterministic fast-path + state engine intercept commands
-  before the LLM backend.
-- **Week 4:** prompt grounding injects the state snapshot into the backend's
-  LLM context before each generation.
-- **Week 6:** the change is submitted upstream as a PR/issue.
+```bash
+ssh -p 2222 root@localhost   # any password is accepted
+# try:  mkdir /tmp/x   then later:  ls /tmp
+```
 
-License: Cowrie is BSD 3-Clause; the fork retains it.
+Watch the events the dashboard will consume:
+
+```bash
+docker compose exec cowrie tail -f var/log/cowrie/cowrie.json
+```
+
+> This is exactly where our gap shows: with the **vanilla** LLM backend, after
+> `mkdir /tmp/x` a later `ls /tmp` often won't show `x` — Cowrie's docs note it
+> "maintains the last 10 commands" and "may be inconsistent with filesystem
+> state." That's what our middleware fixes (Weeks 2-4).
+
+## The "fork" step (yours — needs your GitHub account)
+
+The task says *fork* Cowrie. That's a one-click action on your account:
+
+1. Open https://github.com/cowrie/cowrie and click **Fork**.
+2. Once you start editing Cowrie's source, vendor your fork here:
+   ```bash
+   git submodule add https://github.com/<your-user>/cowrie cowrie/upstream
+   ```
+   and switch `Dockerfile` to a local build (see the comment in `Dockerfile`).
+
+Until you modify Cowrie's source, the image above runs upstream Cowrie with our
+config — fully functional for integration and baseline measurement.
+
+License: Cowrie is BSD-3-Clause; the fork retains it.

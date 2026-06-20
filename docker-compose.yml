@@ -38,7 +38,7 @@ services:
     # Week 1: runs the demo and exits 0. Later: long-running service.
     restart: "no"
 
-  # --- Cowrie honeypot (fork) ------------------------------------------
+  # --- Cowrie honeypot (LLM backend → local Ollama) --------------------
   cowrie:
     build:
       context: ./cowrie
@@ -46,13 +46,13 @@ services:
     container_name: sglh-cowrie
     env_file: .env
     ports:
-      - "2222:2222"   # SSH
+      - "2222:2222"   # SSH   (attacker connects here: ssh -p 2222 root@localhost)
       - "2223:2223"   # Telnet
     depends_on:
-      - middleware
-      - ollama
+      ollama:
+        condition: service_healthy   # don't start until the model server is up
     volumes:
-      - cowrie-var:/cowrie/var   # runtime logs/data (git-ignored)
+      - cowrie-var:/cowrie/var   # runtime logs incl. cowrie.json (git-ignored)
     restart: unless-stopped
 
   # --- admin dashboard (PLANNED — built Weeks 3-6) ----------------------
