@@ -92,8 +92,14 @@ class StateEngine:
             return self._handle_mkdir(args)
         if cmd == "ls":
             return self._handle_ls(args)
+        if cmd == "touch":
+            return self._handle_touch(args)
+        if cmd == "rmdir":
+            return self._handle_rmdir(args)
         if cmd == "rm":
             return self._handle_rm(args)
+        if cmd == "whoami":
+            return self._handle_whoami(args)
 
         return None
 
@@ -205,20 +211,82 @@ class StateEngine:
             return "  ".join(self._list_children(target))
         return posixpath.basename(target)
 
+    def _handle_touch(self, args: list[str]) -> str:
+        if len(args) != 1:
+            self.last_exit_code = 1
+            return "touch: missing file operand"
+
+        raw_target = args[0]
+        target = self._resolve_path(raw_target)
+        node = self._nodes.get(target)
+        if node is not None:
+            self.last_exit_code = 0
+            return ""
+
+        parent, name = self._split(target)
+        parent_node = self._nodes.get(parent)
+        if parent_node is None:
+            self.last_exit_code = 1
+            return f"touch: cannot touch '{raw_target}': No such file or directory"
+        if not parent_node.is_dir:
+            self.last_exit_code = 1
+            return f"touch: cannot touch '{raw_target}': Not a directory"
+        if not name:
+            self.last_exit_code = 1
+            return f"touch: cannot touch '{raw_target}': Invalid argument"
+
+        self._add_file(target)
+        self.last_exit_code = 0
+        return ""
+
+    def _handle_rmdir(self, args: list[str]) -> str:
+        if len(args) != 1:
+            self.last_exit_code = 1
+            return "rmdir: missing operand"
+
+        raw_target = args[0]
+        target = self._resolve_path(raw_target)
+        node = self._nodes.get(target)
+        if node is None:
+            self.last_exit_code = 1
+            return f"rmdir: failed to remove '{raw_target}': No such file or directory"
+        if not node.is_dir:
+            self.last_exit_code = 1
+            return f"rmdir: failed to remove '{raw_target}': Not a directory"
+        if target == "/":
+            self.last_exit_code = 1
+            return "rmdir: failed to remove '/': Device or resource busy"
+        if self._is_ancestor(target, self.cwd):
+            self.last_exit_code = 1
+            return f"rmdir: failed to remove '{raw_target}': Device or resource busy"
+        if self._children.get(target):
+            self.last_exit_code = 1
+            return f"rmdir: failed to remove '{raw_target}': Directory not empty"
+
+        self._remove_subtree(target)
+        self.last_exit_code = 0
+        return ""
+
     def _handle_rm(self, args: list[str]) -> str:
         if not args:
             self.last_exit_code = 1
             return "rm: missing operand"
 
         recursive = False
+        force = False
         targets: list[str] = []
         for arg in args:
-            if arg == "-r" or arg == "-R":
-                recursive = True
+            if arg.startswith("-") and arg != "-":
+                for flag in arg[1:]:
+                    if flag == "r" or flag == "R":
+                        recursive = True
+                        continue
+                    if flag == "f":
+                        force = True
+                        continue
+                    self.last_exit_code = 1
+                    return f"rm: invalid option -- '{arg}'"
                 continue
-            if arg.startswith("-"):
-                self.last_exit_code = 1
-                return f"rm: invalid option -- '{arg}'"
             targets.append(arg)
 
         if len(targets) != 1:
@@ -229,7 +297,9 @@ class StateEngine:
         target = self._resolve_path(raw_target)
         node = self._nodes.get(target)
         if node is None:
-            self.last_exit_code = 1
+            self.last_exit_code = 0 if force else 1
+            if force:
+                return ""
             return f"rm: cannot remove '{raw_target}': No such file or directory"
         if target == "/":
             self.last_exit_code = 1
@@ -244,6 +314,13 @@ class StateEngine:
         self._remove_subtree(target)
         self.last_exit_code = 0
         return ""
+
+    def _handle_whoami(self, args: list[str]) -> str:
+        if args:
+            self.last_exit_code = 1
+            return "whoami: extra operand"
+        self.last_exit_code = 0
+        return self.env["USER"]
 
     # --- helpers ---------------------------------------------------------
     def _resolve_path(self, path: str) -> str:
@@ -270,6 +347,11 @@ class StateEngine:
         self._children.setdefault(path, set())
         if path != "/":
             self._children.setdefault(parent, set()).add(name)
+
+    def _add_file(self, path: str) -> None:
+        parent, name = self._split(path)
+        self._nodes[path] = _VfsNode("file")
+        self._children.setdefault(parent, set()).add(name)
 
     def _list_children(self, path: str) -> list[str]:
         return sorted(self._children.get(path, set()))

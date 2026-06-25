@@ -45,6 +45,11 @@ def test_env_basic_session_fixture() -> None:
     _run_session(data)
 
 
+def test_fs_consistency_session_fixture() -> None:
+    data = json.loads((SESSIONS_DIR / "fs-consistency-002.json").read_text())
+    _run_session(data)
+
+
 # --- a few extra unit tests for the individual primitives -----------------
 
 def test_export_sets_env_var() -> None:
