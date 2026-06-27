@@ -25,19 +25,19 @@ services:
 
   # --- state-tracking middleware ---------------------------------------
   middleware:
-    build:
-      context: ./middleware
-      dockerfile: Dockerfile
-    container_name: sglh-middleware
-    env_file: .env
-    environment:
-      - OLLAMA_HOST=http://ollama:11434
-    depends_on:
-      ollama:
-        condition: service_started
-    # Week 1: runs the demo and exits 0. Later: long-running service.
-    restart: "no"
-
+      build:
+        context: ./middleware
+        dockerfile: Dockerfile
+      container_name: sglh-middleware
+      env_file: .env
+      environment:
+        - OLLAMA_HOST=http://ollama:11434
+      ports:
+        - "8090:8090"
+      depends_on:
+        ollama:
+          condition: service_started
+      restart: unless-stopped
   # --- Cowrie honeypot (LLM backend → local Ollama) --------------------
   cowrie:
     build:
@@ -46,15 +46,16 @@ services:
     container_name: sglh-cowrie
     env_file: .env
     ports:
-      - "2222:2222"   # SSH   (attacker connects here: ssh -p 2222 root@localhost)
-      - "2223:2223"   # Telnet
+      - "2222:2222"
+      - "2223:2223"
     depends_on:
       ollama:
-        condition: service_healthy   # don't start until the model server is up
+        condition: service_healthy
+      middleware:
+        condition: service_started
     volumes:
-      - cowrie-var:/cowrie/var   # runtime logs incl. cowrie.json (git-ignored)
+      - cowrie-var:/cowrie/var
     restart: unless-stopped
-
   # --- admin dashboard (PLANNED — built Weeks 3-6) ----------------------
   # Uncomment once dashboard/ contains code. Defined here so the topology is
   # documented. Backend reads Cowrie's JSON event log (mounted read-only) and

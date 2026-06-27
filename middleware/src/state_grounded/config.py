@@ -3,7 +3,6 @@
 All values come from environment variables (see ../../../.env.example) with
 sensible defaults so the demo runs with zero setup.
 """
-
 from __future__ import annotations
 
 import os
@@ -25,6 +24,10 @@ class Config:
     fast_path: bool = True
     prompt_grounding: bool = True
     log_level: str = "INFO"
+    # Port the Cowrie-integration HTTP bridge listens on (SGLH-12). Cowrie's
+    # [llm] host/path in cowrie.cfg must point here instead of at Ollama
+    # directly, so the middleware can intercept the command flow.
+    bridge_port: int = 8090
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -34,4 +37,5 @@ class Config:
             fast_path=_as_bool(os.getenv("MIDDLEWARE_FAST_PATH"), True),
             prompt_grounding=_as_bool(os.getenv("MIDDLEWARE_PROMPT_GROUNDING"), True),
             log_level=os.getenv("MIDDLEWARE_LOG_LEVEL", "INFO"),
+            bridge_port=int(os.getenv("MIDDLEWARE_BRIDGE_PORT", "8090")),
         )

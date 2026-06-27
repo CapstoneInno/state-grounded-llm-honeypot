@@ -3,7 +3,6 @@
 WEEK 1 SCAFFOLD: builds the grounded prompt string. The actual Ollama call and
 response normalization are wired in Week 4 (TODO markers below).
 """
-
 from __future__ import annotations
 
 from .config import Config
@@ -25,11 +24,28 @@ def build_grounded_prompt(snapshot: StateSnapshot, config: Config) -> str:
 def generate(command: str, snapshot: StateSnapshot, config: Config) -> str:
     """Generate a response for a non-deterministic command.
 
-    TODO(week4): POST to {config.ollama_host}/api/generate with the grounded
-    prompt and {config.ollama_model}; then run response normalization (light
-    check for gross contradictions with the snapshot).
+    TODO(week4 / SGLH-13, SGLH-14): this currently does a direct, unguarded
+    call to Ollama's OpenAI-compatible endpoint. Response normalization
+    (light contradiction check against `snapshot`) is NOT implemented yet —
+    that's SGLH-14. Callers (see cowrie_bridge.py) must still catch
+    exceptions and fall back to a safe in-character response, since this can
+    raise on network errors, timeouts, or a missing/unpulled model.
     """
-    raise NotImplementedError(
-        "LLM generation lands in Week 4 (prompt grounding). "
-        "Week 1 ships the prompt builder only."
+    import httpx
+
+    system_prompt = build_grounded_prompt(snapshot, config)
+    response = httpx.post(
+        f"{config.ollama_host}/v1/chat/completions",
+        json={
+            "model": config.ollama_model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": command},
+            ],
+            "stream": False,
+        },
+        timeout=10.0,
     )
+    response.raise_for_status()
+    data = response.json()
+    return data["choices"][0]["message"]["content"]
