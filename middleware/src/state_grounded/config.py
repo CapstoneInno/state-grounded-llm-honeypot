@@ -28,6 +28,10 @@ class Config:
     # [llm] host/path in cowrie.cfg must point here instead of at Ollama
     # directly, so the middleware can intercept the command flow.
     bridge_port: int = 8090
+    # Path to the per-command event log the middleware appends to (SGLH-3).
+    # Each line is a JSON event with a `served_by` field ("fast-path"|"llm")
+    # that the dashboard (SGLH-24) reads. Empty = file output disabled.
+    events_log: str = ""
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -38,4 +42,5 @@ class Config:
             prompt_grounding=_as_bool(os.getenv("MIDDLEWARE_PROMPT_GROUNDING"), True),
             log_level=os.getenv("MIDDLEWARE_LOG_LEVEL", "INFO"),
             bridge_port=int(os.getenv("MIDDLEWARE_BRIDGE_PORT", "8090")),
+            events_log=os.getenv("MIDDLEWARE_EVENTS_LOG", ""),
         )
