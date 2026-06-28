@@ -7,20 +7,22 @@ API: it POSTs to ``{host}{path}`` (configured in ``cowrie.cfg`` as
 Cowrie is run from the upstream image (no forked source), so we cannot hook
 Python code directly into its process. Instead this module stands in the
 place Cowrie thinks is "the LLM": Cowrie's ``host``/``path`` are pointed at
-*this* server instead of Ollama. For every attacker command we:
+*this* server instead of Ollama. For every attacker command we run
+``dispatch.process_command``, which:
 
-    1. Run ``engine.try_fast_path(command)``.
-       - Not ``None``  -> deterministic answer, return it, no LLM call.
-       - ``None``       -> command is non-deterministic, defer to the LLM.
-    2. Build the grounded system prompt from the live ``StateSnapshot``.
-    3. Call ``prompt_grounding.generate()`` (forwards to Ollama).
-       If that's not implemented yet (Week 4 work, SGLH-13/14) or Ollama is
-       unreachable, fall back to a safe in-character response instead of
-       leaking a traceback to the attacker — see docs/api/llm-backend-contract.md.
+    1. Runs ``engine.try_fast_path(command)``.
+       - Not ``None``  -> deterministic answer (served_by="fast-path").
+       - ``None``       -> defer to the LLM (served_by="llm"), with a safe
+         in-character fallback if generation isn't wired up / Ollama is down.
+    2. Returns the reply plus a ``CommandEvent`` carrying ``served_by``.
+
+The bridge then (a) returns the reply to Cowrie in OpenAI shape and (b) appends
+the event to the middleware event log so the dashboard (SGLH-24) and tests can
+see how each command was served.
 
 One ``StateEngine`` instance is kept per Cowrie session id so state (cwd,
-files, env, $?) is tracked correctly across multiple commands in the same
-attacker session, and reset when the session ends.
+files, env, $?) is tracked across multiple commands in the same attacker
+session, and reset when the session ends.
 
 Run standalone:  python -m state_grounded.cowrie_bridge
 """
@@ -33,14 +35,11 @@ from typing import Any
 from aiohttp import web
 
 from .config import Config
-from .prompt_grounding import build_grounded_prompt, generate
+from .dispatch import process_command
+from .events import EventLog
 from .state_engine import StateEngine
 
 logger = logging.getLogger(__name__)
-
-# Safe, in-character fallback shown to the attacker if the LLM call fails or
-# is not wired up yet. Never leak exceptions/stack traces into the session.
-FALLBACK_RESPONSE = "-bash: command not found"
 
 
 class SessionRegistry:
@@ -77,13 +76,7 @@ def _extract_command(payload: dict[str, Any]) -> str:
 
 
 def _extract_session_id(request: web.Request, payload: dict[str, Any]) -> str:
-    """Identify which Cowrie session this request belongs to.
-
-    Cowrie does not (currently) send a stable session id inside the OpenAI
-    payload, so we key on a header set by the cowrie-side config docs
-    recommend (X-Cowrie-Session-Id). If absent, fall back to the client's
-    transport peer name so at least same-connection requests share state.
-    """
+    """Identify which Cowrie session this request belongs to."""
     header_id = request.headers.get("X-Cowrie-Session-Id")
     if header_id:
         return header_id
@@ -107,10 +100,15 @@ def _openai_response(content: str, model: str) -> dict[str, Any]:
     }
 
 
-def create_app(config: Config | None = None, registry: SessionRegistry | None = None) -> web.Application:
+def create_app(
+    config: Config | None = None,
+    registry: SessionRegistry | None = None,
+    event_log: EventLog | None = None,
+) -> web.Application:
     """Build the aiohttp app. Exposed as a function so tests can inject state."""
     config = config or Config.from_env()
     registry = registry or SessionRegistry()
+    event_log = event_log or EventLog(config.events_log)
 
     async def chat_completions(request: web.Request) -> web.Response:
         try:
@@ -123,33 +121,10 @@ def create_app(config: Config | None = None, registry: SessionRegistry | None = 
         engine = registry.get(session_id)
         model = payload.get("model", config.ollama_model)
 
-        # 1. Deterministic fast-path — no LLM call at all.
-        fast_result = engine.try_fast_path(command) if config.fast_path else None
-        if fast_result is not None:
-            logger.info("fast-path served command=%r session=%s", command, session_id)
-            return web.json_response(_openai_response(fast_result, model))
+        # One place decides fast-path vs LLM and tags the event with served_by.
+        reply, event = process_command(engine, command, config, session_id)
+        event_log.emit(event)
 
-        # 2. Non-deterministic — build the grounded prompt and defer to the LLM.
-        snapshot = engine.snapshot()
-        grounded_prompt = build_grounded_prompt(snapshot, config)
-        try:
-            reply = generate(command, snapshot, config)
-        except NotImplementedError:
-            # Week 4 grounding/generation (SGLH-13/14) not landed yet.
-            logger.warning(
-                "LLM generation not implemented yet; falling back. command=%r", command
-            )
-            reply = FALLBACK_RESPONSE
-        except Exception:  # noqa: BLE001 - never leak internals to the attacker
-            logger.exception("LLM call failed; falling back. command=%r", command)
-            reply = FALLBACK_RESPONSE
-
-        logger.info(
-            "grounded-path served command=%r session=%s prompt_chars=%d",
-            command,
-            session_id,
-            len(grounded_prompt),
-        )
         return web.json_response(_openai_response(reply, model))
 
     async def session_end(request: web.Request) -> web.Response:
@@ -164,6 +139,7 @@ def create_app(config: Config | None = None, registry: SessionRegistry | None = 
     app = web.Application()
     app["config"] = config
     app["registry"] = registry
+    app["event_log"] = event_log
     app.router.add_post("/v1/chat/completions", chat_completions)
     app.router.add_delete("/v1/sessions/{session_id}", session_end)
     app.router.add_get("/healthz", healthz)
