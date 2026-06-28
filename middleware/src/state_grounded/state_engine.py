@@ -179,10 +179,7 @@ class StateEngine:
         parent_node = self._nodes.get(parent)
         if parent_node is None:
             self.last_exit_code = 1
-            return (
-                f"mkdir: cannot create directory '{raw_target}': "
-                "No such file or directory"
-            )
+            return f"mkdir: cannot create directory '{raw_target}': No such file or directory"
         if not parent_node.is_dir:
             self.last_exit_code = 1
             return f"mkdir: cannot create directory '{raw_target}': Not a directory"
@@ -337,8 +334,10 @@ class StateEngine:
 
     @staticmethod
     def _is_valid_var_name(name: str) -> bool:
-        return bool(name) and (name[0].isalpha() or name[0] == "_") and all(
-            ch.isalnum() or ch == "_" for ch in name
+        return (
+            bool(name)
+            and (name[0].isalpha() or name[0] == "_")
+            and all(ch.isalnum() or ch == "_" for ch in name)
         )
 
     def _add_dir(self, path: str) -> None:

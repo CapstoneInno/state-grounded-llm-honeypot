@@ -1,7 +1,8 @@
 """Runnable demo week 2. Deterministic state engine.
 
 Replays a short scripted session through the state engine and prints, after
-each command, the grounded system prompt the LLM *would* receive. This proves deterministic state tracking and grounded-prompt generation on a scripted session.
+each command, the grounded system prompt the LLM *would* receive. 
+This proves deterministic state tracking and grounded-prompt generation on a scripted session.
 Cowrie integration and live Ollama inference are the next project stage.
 
 Run:  python -m state_grounded
@@ -33,14 +34,17 @@ DEMO_SESSION = [
     "uname -a",
 ]
 
+
 def main() -> None:
     config = Config.from_env()
     engine = StateEngine()
 
     print("=" * 64)
     print(" State-Grounded LLM Honeypot — Week 2 demo")
-    print(f" model={config.ollama_model}  fast_path={config.fast_path}  "
-          f"grounding={config.prompt_grounding}")
+    print(
+        f" model={config.ollama_model}  fast_path={config.fast_path}  "
+        f"grounding={config.prompt_grounding}"
+    )
     print("=" * 64)
 
     for command in DEMO_SESSION:

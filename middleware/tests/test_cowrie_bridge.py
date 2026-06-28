@@ -2,6 +2,7 @@
 
 Run from the middleware/ directory:  python -m pytest
 """
+
 from __future__ import annotations
 
 import os
@@ -11,7 +12,6 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "src"))
 
 import pytest  # noqa: E402
 from aiohttp.test_utils import TestClient, TestServer  # noqa: E402
-
 from state_grounded.config import Config  # noqa: E402
 from state_grounded.cowrie_bridge import SessionRegistry, create_app  # noqa: E402
 
@@ -43,9 +43,7 @@ def _chat_payload(command: str, session_id: str = "sess-1") -> dict:
 async def test_fast_path_command_served_without_llm(config: Config) -> None:
     client = await _client(config)
     try:
-        resp = await client.post(
-            "/v1/chat/completions", json=_chat_payload("pwd", "s1")
-        )
+        resp = await client.post("/v1/chat/completions", json=_chat_payload("pwd", "s1"))
         assert resp.status == 200
         body = await resp.json()
         content = body["choices"][0]["message"]["content"]
@@ -58,9 +56,7 @@ async def test_fast_path_command_served_without_llm(config: Config) -> None:
 async def test_state_persists_across_requests_in_same_session(config: Config) -> None:
     client = await _client(config)
     try:
-        await client.post(
-            "/v1/chat/completions", json=_chat_payload("mkdir /tmp/x", "s1")
-        )
+        await client.post("/v1/chat/completions", json=_chat_payload("mkdir /tmp/x", "s1"))
         await client.post("/v1/chat/completions", json=_chat_payload("cd /tmp", "s1"))
         resp = await client.post("/v1/chat/completions", json=_chat_payload("ls", "s1"))
         body = await resp.json()
@@ -75,9 +71,7 @@ async def test_different_sessions_do_not_share_state(config: Config) -> None:
     client = await _client(config)
     try:
         await client.post("/v1/chat/completions", json=_chat_payload("cd /tmp", "s1"))
-        resp = await client.post(
-            "/v1/chat/completions", json=_chat_payload("pwd", "s2")
-        )
+        resp = await client.post("/v1/chat/completions", json=_chat_payload("pwd", "s2"))
         body = await resp.json()
         content = body["choices"][0]["message"]["content"]
         assert content == "/root"  # s2 never cd'd, still at default cwd
@@ -91,9 +85,7 @@ async def test_nondeterministic_command_falls_back_safely(config: Config) -> Non
     must degrade to the safe fallback instead of raising/500ing."""
     client = await _client(config)
     try:
-        resp = await client.post(
-            "/v1/chat/completions", json=_chat_payload("uname -a", "s1")
-        )
+        resp = await client.post("/v1/chat/completions", json=_chat_payload("uname -a", "s1"))
         assert resp.status == 200
         body = await resp.json()
         assert "choices" in body
@@ -121,9 +113,7 @@ async def test_session_end_drops_state(config: Config) -> None:
         resp = await client.delete("/v1/sessions/s1")
         assert resp.status == 200
         # After dropping, a fresh session starts back at /root.
-        resp2 = await client.post(
-            "/v1/chat/completions", json=_chat_payload("pwd", "s1")
-        )
+        resp2 = await client.post("/v1/chat/completions", json=_chat_payload("pwd", "s1"))
         body = await resp2.json()
         assert body["choices"][0]["message"]["content"] == "/root"
     finally:

@@ -3,33 +3,51 @@ name: CI
 on:
   push:
   pull_request:
+
 jobs:
-  build:
+  quality-and-build:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
+
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: 3.12
-          cache: 'pip'
+          python-version: "3.12"
+          cache: "pip"
+
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
-          python -m pip install -r middleware/requirements.txt
-      - name: Run tests
+          python -m pip install -r middleware/requirements.txt ruff
+
+      - name: Run linter
+        run: |
+          ruff check .
+
+      - name: Run unit tests
         working-directory: middleware
         run: |
-          pytest
+          pytest -q
+
       - name: Prepare environment file
         run: cp .env.example .env
 
-      - name: Validate docker-compose file
+      - name: Validate docker compose config
         run: docker compose config
-      - name: Build middleware Docker image
+
+      - name: Build middleware image
         run: docker build -f middleware/Dockerfile -t sglh-middleware ./middleware
 
-      - name: Build Cowrie Docker image
+      - name: Build Cowrie image
         run: docker build -f cowrie/Dockerfile -t sglh-cowrie ./cowrie
-  
+
+      - name: Smoke bring-up middleware container
+        run: |
+          docker compose up -d middleware
+          docker compose ps
+          docker compose logs middleware --tail=50
+          docker compose exec -T middleware python -c "import urllib.request; print(urllib.request.urlopen('http://127.0.0.1:8090/healthz').read().decode())"
+          docker compose down -v

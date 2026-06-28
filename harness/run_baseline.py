@@ -5,8 +5,8 @@ import glob
 import json
 import os
 import statistics
-import time
 import sys
+import time
 
 import pexpect
 
@@ -75,7 +75,9 @@ class CowrieDriver:
         start = time.perf_counter()
         self._child.sendline(command)
 
-        matched = self._child.expect([COWRIE_PROMPT, pexpect.TIMEOUT, pexpect.EOF], timeout=self.timeout)
+        matched = self._child.expect(
+            [COWRIE_PROMPT, pexpect.TIMEOUT, pexpect.EOF], timeout=self.timeout
+        )
         elapsed = time.perf_counter() - start
 
         if matched == 1:
@@ -176,9 +178,7 @@ def compute_metrics(steps_results: list[dict]) -> dict:
     }
 
 
-def run_single_session(
-    driver: CowrieDriver, session: dict, backend: str
-) -> tuple[dict, dict]:
+def run_single_session(driver: CowrieDriver, session: dict, backend: str) -> tuple[dict, dict]:
     """Run a single session and return (metrics, per_step_results)."""
     steps_results = []
     all_start = time.perf_counter()
@@ -242,9 +242,11 @@ def run(backend: str, sessions: list[dict], host: str, port: int) -> dict:
         all_metrics.append(metrics)
 
         passed = metrics["state_consistency_rate"]
-        print(f"    Consistency: {passed:.1%}  "
-              f"Detections: {metrics['detection_signals_count']}  "
-              f"p50: {metrics['latency_p50']:.2f}s  p95: {metrics['latency_p95']:.2f}s")
+        print(
+            f"    Consistency: {passed:.1%}  "
+            f"Detections: {metrics['detection_signals_count']}  "
+            f"p50: {metrics['latency_p50']:.2f}s  p95: {metrics['latency_p95']:.2f}s"
+        )
 
     if all_metrics:
         agg = {
@@ -252,20 +254,13 @@ def run(backend: str, sessions: list[dict], host: str, port: int) -> dict:
                 statistics.mean(m["state_consistency_rate"] for m in all_metrics), 4
             ),
             "detection_signals_count": sum(m["detection_signals_count"] for m in all_metrics),
-            "latency_p50": round(
-                statistics.mean(m["latency_p50"] for m in all_metrics), 4
-            ),
-            "latency_p95": round(
-                statistics.mean(m["latency_p95"] for m in all_metrics), 4
-            ),
+            "latency_p50": round(statistics.mean(m["latency_p50"] for m in all_metrics), 4),
+            "latency_p95": round(statistics.mean(m["latency_p95"] for m in all_metrics), 4),
             "llm_call_rate": 1.0,
-            "total_elapsed": round(
-                sum(m.get("total_elapsed", 0) for m in all_metrics), 4
-            ),
+            "total_elapsed": round(sum(m.get("total_elapsed", 0) for m in all_metrics), 4),
             "total_commands": sum(len(m["step_results"]) for m in all_metrics),
             "total_passed": sum(
-                sum(1 for sr in m["step_results"] if sr["passed"])
-                for m in all_metrics
+                sum(1 for sr in m["step_results"] if sr["passed"]) for m in all_metrics
             ),
         }
         results["aggregate"] = agg
@@ -274,9 +269,7 @@ def run(backend: str, sessions: list[dict], host: str, port: int) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(
-        description="State-grounded honeypot evaluation harness"
-    )
+    parser = argparse.ArgumentParser(description="State-grounded honeypot evaluation harness")
     parser.add_argument("--backend", choices=["vanilla", "grounded"], required=True)
     parser.add_argument("--out", default=None)
     parser.add_argument("--host", default=DEFAULT_HOST)
