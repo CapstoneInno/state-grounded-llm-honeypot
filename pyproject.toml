@@ -15,3 +15,8 @@ extend-exclude = [
 
 [tool.ruff.lint]
 select = ["E", "F", "I"]
+
+[tool.pytest.ini_options]
+markers = [
+    "integration: requires local Ollama",
+]
