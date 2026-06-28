@@ -3,6 +3,7 @@
 WEEK 1 SCAFFOLD: builds the grounded prompt string. The actual Ollama call and
 response normalization are wired in Week 4 (TODO markers below).
 """
+
 from __future__ import annotations
 
 from .config import Config

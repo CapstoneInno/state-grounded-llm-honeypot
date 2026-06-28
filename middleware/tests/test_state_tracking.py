@@ -3,6 +3,7 @@
 Runs the harness session fixtures directly as pytest cases, so the test
 suite stays in sync with the scenarios the team already defined.
 """
+
 from __future__ import annotations
 
 import json
@@ -51,6 +52,7 @@ def test_fs_consistency_session_fixture() -> None:
 
 
 # --- a few extra unit tests for the individual primitives -----------------
+
 
 def test_export_sets_env_var() -> None:
     eng = StateEngine()

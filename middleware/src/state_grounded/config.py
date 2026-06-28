@@ -3,6 +3,7 @@
 All values come from environment variables (see ../../../.env.example) with
 sensible defaults so the demo runs with zero setup.
 """
+
 from __future__ import annotations
 
 import os
