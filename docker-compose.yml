@@ -1,11 +1,7 @@
 # State-Grounded LLM Honeypot — full self-hosted stack, one command.
 #
-# Week 1: `docker compose up --build middleware` runs the demo (proves the
-# toolchain). The cowrie + ollama services are defined here so the topology is
-# documented and ready; they come fully online as features land (Weeks 2-4).
-#
-# Model weights are NOT committed to git — they are pulled with `ollama pull`
-# at setup (see scripts/pull_model.sh).
+# Model weights are pulled automatically at startup by the ollama-pull init
+# container.  The pinned model is set in .env via OLLAMA_MODEL.
 
 services:
   # --- local LLM runtime ------------------------------------------------
@@ -18,10 +14,24 @@ services:
       - ollama-models:/root/.ollama   # model cache (git-ignored, not in repo)
     healthcheck:
       test: ["CMD", "ollama", "list"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
       retries: 5
     restart: unless-stopped
+
+  # --- model pull init container (auto-pull at startup) ------------------
+  ollama-pull:
+    image: ollama/ollama:latest
+    container_name: sglh-ollama-pull
+    volumes:
+      - ollama-models:/root/.ollama
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    command: ["pull", "${OLLAMA_MODEL:-qwen2.5:3b}"]
+    restart: on-failure
 
   # --- state-tracking middleware ---------------------------------------
   middleware:
@@ -36,7 +46,9 @@ services:
         - "8090:8090"
       depends_on:
         ollama:
-          condition: service_started
+          condition: service_healthy
+        ollama-pull:
+          condition: service_completed_successfully
       restart: unless-stopped
   # --- Cowrie honeypot (LLM backend → local Ollama) --------------------
   cowrie:
@@ -51,6 +63,8 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
+      ollama-pull:
+        condition: service_completed_successfully
       middleware:
         condition: service_started
     volumes:
