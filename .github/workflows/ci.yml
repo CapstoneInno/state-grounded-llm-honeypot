@@ -27,9 +27,10 @@ jobs:
         run: |
           ruff check .
 
-      - name: Run tests (unit + functional)
+      - name: Run unit tests
+        working-directory: middleware
         run: |
-          PYTHONPATH=middleware/src python -m pytest -q
+          pytest -q
 
       - name: Prepare environment file
         run: cp .env.example .env
@@ -46,26 +47,18 @@ jobs:
   deploy:
     needs: quality-and-build
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
+    runs-on: self-hosted
 
     steps:
-      - name: Deploy to VM
-        uses: appleboy/ssh-action@v1.2.0
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          port: ${{ secrets.SSH_PORT }}
-          script: |
-            set -e
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-            cd ~/state-grounded-llm-honeypot
+      - name: Deploy
+        run: |
+          set -e
 
-            git fetch origin
-            git reset --hard origin/main
+          if [ -f .env.example ] && [ ! -f .env ]; then
+            cp .env.example .env
+          fi
 
-            if [ -f .env.example ] && [ ! -f .env ]; then
-              cp .env.example .env
-            fi
-
-            docker compose up -d --build
+          docker compose up -d --build
