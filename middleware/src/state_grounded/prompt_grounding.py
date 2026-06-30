@@ -45,7 +45,7 @@ def generate(command: str, snapshot: StateSnapshot, config: Config) -> str:
             ],
             "stream": False,
         },
-        timeout=10.0,
+        timeout=35.0,
     )
     response.raise_for_status()
     data = response.json()
