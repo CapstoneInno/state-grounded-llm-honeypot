@@ -27,10 +27,9 @@ jobs:
         run: |
           ruff check .
 
-      - name: Run unit tests
-        working-directory: middleware
+      - name: Run tests (unit + functional)
         run: |
-          pytest -q
+          PYTHONPATH=middleware/src python -m pytest -q
 
       - name: Prepare environment file
         run: cp .env.example .env

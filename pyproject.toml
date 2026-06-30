@@ -17,6 +17,7 @@ extend-exclude = [
 select = ["E", "F", "I"]
 
 [tool.pytest.ini_options]
+testpaths = ["middleware/tests", "tests"]
 markers = [
     "integration: requires local Ollama",
 ]
