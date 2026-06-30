@@ -20,7 +20,7 @@ def _as_bool(value: str | None, default: bool) -> bool:
 class Config:
     """Runtime configuration, loaded from the environment."""
 
-    ollama_model: str = "qwen2.5:3b"
+    ollama_model: str = "qwen2.5:1.5b"
     ollama_host: str = "http://ollama:11434"
     fast_path: bool = True
     prompt_grounding: bool = True
@@ -37,7 +37,7 @@ class Config:
     @classmethod
     def from_env(cls) -> "Config":
         return cls(
-            ollama_model=os.getenv("OLLAMA_MODEL", "qwen2.5:3b"),
+            ollama_model=os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b"),
             ollama_host=os.getenv("OLLAMA_HOST", "http://ollama:11434"),
             fast_path=_as_bool(os.getenv("MIDDLEWARE_FAST_PATH"), True),
             prompt_grounding=_as_bool(os.getenv("MIDDLEWARE_PROMPT_GROUNDING"), True),
