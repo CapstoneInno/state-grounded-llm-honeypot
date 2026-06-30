@@ -32,12 +32,12 @@ services:
       ollama:
         condition: service_healthy
     command: |
-      echo "==> Pulling ${OLLAMA_MODEL:-qwen2.5:3b}..." &&
-      ollama pull ${OLLAMA_MODEL:-qwen2.5:3b} &&
-      echo "==> Warming up ${OLLAMA_MODEL:-qwen2.5:3b}..." &&
+      echo "==> Pulling ${OLLAMA_MODEL:-qwen2.5:1.5b}..." &&
+      ollama pull ${OLLAMA_MODEL:-qwen2.5:1.5b} &&
+      echo "==> Warming up ${OLLAMA_MODEL:-qwen2.5:1.5b}..." &&
       curl -s -X POST http://ollama:11434/api/generate \
         -H "Content-Type: application/json" \
-        -d "{\"model\": \"${OLLAMA_MODEL:-qwen2.5:3b}\", \"prompt\": \"hi\", \"stream\": false, \"keep_alive\": -1}" &&
+        -d "{\"model\": \"${OLLAMA_MODEL:-qwen2.5:1.5b}\", \"prompt\": \"hi\", \"stream\": false, \"keep_alive\": -1}" &&
       echo "==> Model ready"
     restart: on-failure
 

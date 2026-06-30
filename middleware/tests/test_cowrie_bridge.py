@@ -33,7 +33,7 @@ async def _client(config: Config) -> TestClient:
 
 def _chat_payload(command: str, session_id: str = "sess-1") -> dict:
     return {
-        "model": "qwen2.5:3b",
+        "model": "qwen2.5:1.5b",
         "messages": [{"role": "user", "content": command}],
         "user": session_id,
     }

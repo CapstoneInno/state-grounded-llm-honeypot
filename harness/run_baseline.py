@@ -217,7 +217,7 @@ def run(backend: str, sessions: list[dict], host: str, port: int) -> dict:
         "backend": backend,
         "host": host,
         "port": port,
-        "model": os.getenv("OLLAMA_MODEL", "qwen2.5:3b"),
+        "model": os.getenv("OLLAMA_MODEL", "qwen2.5:1.5b"),
         "timestamp": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
         "total_sessions": len(sessions),
         "sessions": [],
