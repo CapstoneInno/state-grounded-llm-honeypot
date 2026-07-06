@@ -42,6 +42,11 @@ from .state_engine import StateEngine
 logger = logging.getLogger(__name__)
 
 
+def _log_level(value: str) -> int:
+    level = getattr(logging, value.upper(), logging.INFO)
+    return level if isinstance(level, int) else logging.INFO
+
+
 class SessionRegistry:
     """Keeps one StateEngine per Cowrie session, so state isn't shared/lost."""
 
@@ -147,8 +152,8 @@ def create_app(
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
     config = Config.from_env()
+    logging.basicConfig(level=_log_level(config.log_level))
     app = create_app(config)
     web.run_app(app, host="0.0.0.0", port=config.bridge_port)
 
