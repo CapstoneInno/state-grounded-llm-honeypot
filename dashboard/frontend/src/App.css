@@ -1,0 +1,8 @@
+/* App Container Styles */
+
+.app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: #0f172a;
+}

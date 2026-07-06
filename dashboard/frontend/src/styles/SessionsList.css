@@ -1,0 +1,97 @@
+/* Sessions List Styles */
+
+.sessions-container {
+  max-width: 1400px;
+}
+
+.sessions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 1.5rem;
+}
+
+.sessions-header h2 {
+  font-size: 1.3rem;
+}
+
+.live-status {
+  font-size: 0.9rem;
+  color: var(--text-muted);
+  transition: color 0.3s;
+}
+
+.live-status.live {
+  color: var(--success);
+  font-weight: 600;
+}
+
+.sessions-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.sessions-table thead {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.sessions-table th {
+  padding: 1rem;
+  text-align: left;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.sessions-table tbody tr {
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+
+.sessions-table tbody tr:last-child {
+  border-bottom: none;
+}
+
+.session-row {
+  cursor: pointer;
+}
+
+.session-row:hover {
+  background: rgba(37, 99, 235, 0.1);
+}
+
+.sessions-table td {
+  padding: 1rem;
+  font-size: 0.9rem;
+}
+
+.session-id {
+  color: var(--primary-light);
+  font-weight: 500;
+  font-family: 'Courier New', monospace;
+}
+
+.command-count {
+  font-weight: 600;
+  color: var(--text);
+}
+
+.fast-path-count {
+  color: var(--success);
+}
+
+.llm-count {
+  color: var(--primary-light);
+}
+
+.timestamp {
+  color: var(--text-muted);
+  font-size: 0.85rem;
+}

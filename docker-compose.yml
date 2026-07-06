@@ -9,7 +9,7 @@ services:
     image: ollama/ollama:latest
     container_name: sglh-ollama
     ports:
-      - "11434:11434"
+      - "127.0.0.1:11434:11434"
     volumes:
       - ollama-models:/root/.ollama   # model cache (git-ignored, not in repo)
     healthcheck:
@@ -41,17 +41,22 @@ services:
       echo "==> Model ready"
     restart: on-failure
 
-  # --- state-tracking middleware ---------------------------------------
+  # --- state-tracking middleware + dashboard API -------------------------
   middleware:
       build:
-        context: ./middleware
-        dockerfile: Dockerfile
+        context: .
+        dockerfile: dashboard/backend/Dockerfile
       container_name: sglh-middleware
       env_file: .env
       environment:
         - OLLAMA_HOST=http://ollama:11434
+        - MIDDLEWARE_BRIDGE_PORT=8000
+        - MIDDLEWARE_EVENTS_LOG=/var/log/sglh/events.json
+        - MIDDLEWARE_LOG_LEVEL=INFO
       ports:
-        - "8090:8090"
+        - "127.0.0.1:8000:8000"
+      volumes:
+        - sglh-events:/var/log/sglh
       depends_on:
         ollama:
           condition: service_healthy
@@ -78,36 +83,21 @@ services:
     volumes:
       - cowrie-var:/cowrie/var
     restart: unless-stopped
-  # --- admin dashboard (PLANNED — built Weeks 3-6) ----------------------
-  # Uncomment once dashboard/ contains code. Defined here so the topology is
-  # documented. Backend reads Cowrie's JSON event log (mounted read-only) and
-  # serves REST + WebSocket; frontend is the React SPA. See docs/api/dashboard-api.md
-  #
-  # dashboard-api:
-  #   build:
-  #     context: ./dashboard/backend
-  #     dockerfile: Dockerfile
-  #   container_name: sglh-dashboard-api
-  #   env_file: .env
-  #   ports:
-  #     - "8000:8000"            # FastAPI (REST + WebSocket)
-  #   volumes:
-  #     - cowrie-var:/cowrie/var:ro   # read Cowrie's JSON event log
-  #   depends_on:
-  #     - cowrie
-  #   restart: unless-stopped
-  #
-  # dashboard-web:
-  #   build:
-  #     context: ./dashboard/frontend
-  #     dockerfile: Dockerfile
-  #   container_name: sglh-dashboard-web
-  #   ports:
-  #     - "5173:80"              # React SPA (served by nginx)
-  #   depends_on:
-  #     - dashboard-api
-  #   restart: unless-stopped
+  # --- admin dashboard (React frontend) ---
+  dashboard:
+    build:
+      context: ./dashboard/frontend
+      dockerfile: Dockerfile
+    container_name: sglh-dashboard
+    ports:
+      - "127.0.0.1:5173:5173"
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    depends_on:
+      - middleware
+    restart: unless-stopped
 
 volumes:
   ollama-models:
   cowrie-var:
+  sglh-events:
