@@ -135,7 +135,7 @@ class TestDashboardAPI(AioHTTPTestCase):
     async def test_api_stream_websocket(self) -> None:
         """Test WebSocket /api/stream endpoint."""
         async with self.client.ws_connect("/api/stream") as ws:
-            assert not ws.is_closed()
+            assert not ws.closed
             # WebSocket should be connectable
 
 
