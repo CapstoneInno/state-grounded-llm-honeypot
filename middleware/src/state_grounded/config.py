@@ -32,7 +32,7 @@ class Config:
     # Path to the per-command event log the middleware appends to (SGLH-3).
     # Each line is a JSON event with a `served_by` field ("fast-path"|"llm")
     # that the dashboard (SGLH-24) reads. Empty = file output disabled.
-    events_log: str = ""
+    events_log: str = "var/sglh-events.jsonl"
 
     @classmethod
     def from_env(cls) -> "Config":

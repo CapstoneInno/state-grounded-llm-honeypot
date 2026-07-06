@@ -7,9 +7,7 @@ import tempfile
 from pathlib import Path
 
 import pytest
-
 from state_grounded.ingest import compute_stats, get_sessions_list, parse_events_file
-from state_grounded.models import Command, Session
 
 
 @pytest.fixture

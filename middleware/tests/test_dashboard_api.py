@@ -9,7 +9,6 @@ from pathlib import Path
 import pytest
 from aiohttp import web
 from aiohttp.test_utils import AioHTTPTestCase, unittest_run_loop
-
 from state_grounded.config import Config
 from state_grounded.cowrie_bridge import create_app
 
