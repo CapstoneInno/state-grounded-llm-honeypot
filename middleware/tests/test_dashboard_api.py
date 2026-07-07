@@ -61,7 +61,13 @@ class TestDashboardAPI(AioHTTPTestCase):
         return create_app(config)
 
     def tearDown(self) -> None:
-        """Clean up temp file."""
+        """Clean up temp file.
+
+        The handle must be closed first -- on Windows, unlink() on a file
+        that's still open in this process raises PermissionError (no-op on
+        Linux, which is why this didn't surface until testing on Windows).
+        """
+        self.events_file.close()
         Path(self.events_file.name).unlink(missing_ok=True)
 
     @unittest_run_loop

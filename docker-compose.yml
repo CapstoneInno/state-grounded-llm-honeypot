@@ -81,7 +81,14 @@ services:
       middleware:
         condition: service_started
     volumes:
-      - cowrie-var:/cowrie/var
+      # NOTE: Cowrie's actual install root is /cowrie/cowrie-git (the base
+      # image's WORKDIR), so its real data dir -- SSH host keys, session
+      # logs, downloads -- lives at /cowrie/cowrie-git/var, NOT /cowrie/var.
+      # This was previously mounted at the wrong path, so an anonymous
+      # volume (from the base image's own VOLUME declaration) silently
+      # backed the real data dir and got discarded on every full
+      # recreate -- that's why the SSH host key kept regenerating.
+      - cowrie-var:/cowrie/cowrie-git/var
     restart: unless-stopped
   # --- admin dashboard (React frontend) ---
   dashboard:
