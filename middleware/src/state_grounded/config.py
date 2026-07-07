@@ -24,6 +24,11 @@ class Config:
     ollama_host: str = "http://ollama:11434"
     fast_path: bool = True
     prompt_grounding: bool = True
+    # Deterministic pre-LLM guard (SGLH-23): reject conversational/
+    # instruction-shaped input as "command not found" before the LLM is ever
+    # called, instead of relying on the model to refuse on its own. See
+    # dispatch.py::_looks_like_shell_command.
+    strict_command_guard: bool = True
     log_level: str = "INFO"
     # Port the Cowrie-integration HTTP bridge listens on (SGLH-12). Cowrie's
     # [llm] host/path in cowrie.cfg must point here instead of at Ollama
@@ -32,7 +37,7 @@ class Config:
     # Path to the per-command event log the middleware appends to (SGLH-3).
     # Each line is a JSON event with a `served_by` field ("fast-path"|"llm")
     # that the dashboard (SGLH-24) reads. Empty = file output disabled.
-    events_log: str = ""
+    events_log: str = "var/sglh-events.jsonl"
 
     @classmethod
     def from_env(cls) -> "Config":
@@ -41,6 +46,7 @@ class Config:
             ollama_host=os.getenv("OLLAMA_HOST", "http://ollama:11434"),
             fast_path=_as_bool(os.getenv("MIDDLEWARE_FAST_PATH"), True),
             prompt_grounding=_as_bool(os.getenv("MIDDLEWARE_PROMPT_GROUNDING"), True),
+            strict_command_guard=_as_bool(os.getenv("MIDDLEWARE_STRICT_COMMAND_GUARD"), True),
             log_level=os.getenv("MIDDLEWARE_LOG_LEVEL", "INFO"),
             bridge_port=int(os.getenv("MIDDLEWARE_BRIDGE_PORT", "8090")),
             events_log=os.getenv("MIDDLEWARE_EVENTS_LOG", ""),

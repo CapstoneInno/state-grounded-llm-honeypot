@@ -20,7 +20,15 @@ def test_fast_path_and_ollama_command() -> None:
 
     Verifies:
     1. deterministic command -> fast-path
-    2. non-deterministic command -> Ollama path
+    2. non-deterministic *but real* command -> Ollama path
+
+    Note: this must be a genuine shell command, not a conversational phrase.
+    The SGLH-23 guard (dispatch.py::_looks_like_shell_command) now rejects
+    conversational/instruction-shaped input as "command not found" before
+    the LLM is ever called -- that's the point of the guard, so a phrase
+    like "tell me one word" is correctly blocked, not deferred to the LLM.
+    "uname -a" is real, isn't implemented by the deterministic fast-path,
+    and passes the guard, so it still exercises the actual Ollama call.
     """
 
     try:
@@ -46,7 +54,7 @@ def test_fast_path_and_ollama_command() -> None:
 
     reply, event = process_command(
         engine,
-        "tell me one word",
+        "uname -a",
         config,
         "smoke-session",
     )

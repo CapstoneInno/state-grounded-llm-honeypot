@@ -6,7 +6,9 @@ for every command the bridge handles we append one JSON line here, shaped like
 a Cowrie command event plus a ``served_by`` field, so the admin dashboard
 (SGLH-24) and the tests can see how each command was served.
 
-``served_by`` is always one of ``fast-path`` or ``llm``.
+``served_by`` is one of ``fast-path``, ``llm``, or ``guard`` (SGLH-23:
+rejected as non-command by the deterministic prompt-injection guard before
+the LLM was ever called).
 """
 
 from __future__ import annotations
@@ -23,6 +25,7 @@ logger = logging.getLogger(__name__)
 # served_by values — constants so callers and tests never typo them.
 FAST_PATH = "fast-path"
 LLM = "llm"
+GUARD = "guard"
 
 
 def _utc_now() -> str:
