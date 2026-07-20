@@ -64,7 +64,7 @@ def main() -> None:
     print("Final snapshot:")
     for line in engine.snapshot().to_prompt_block().splitlines():
         print(f"  {line}")
-    print("\nWeek 2 demo OK. Determenistic state runs successfully.")
+    print("\nWeek 2 demo OK. Deterministic state runs successfully.")
 
 
 if __name__ == "__main__":

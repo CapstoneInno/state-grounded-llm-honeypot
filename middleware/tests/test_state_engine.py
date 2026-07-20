@@ -10,8 +10,8 @@ from state_grounded import StateEngine  # noqa: E402
 
 def test_initial_state_pwd() -> None:
     eng = StateEngine()
-    assert eng.cwd == "/root"
-    assert eng.try_fast_path("pwd") == "/root"
+    assert eng.cwd == "/"
+    assert eng.try_fast_path("pwd") == "/"
 
 
 def test_mkdir_then_ls() -> None:
@@ -45,7 +45,7 @@ def test_cd_failure_keeps_cwd_and_sets_exit_code() -> None:
     eng = StateEngine()
     out = eng.try_fast_path("cd /does-not-exist")
     assert out == "bash: cd: /does-not-exist: No such file or directory"
-    assert eng.cwd == "/root"
+    assert eng.cwd == "/"
     assert eng.last_exit_code == 1
 
 
@@ -215,7 +215,7 @@ def test_successful_pwd_resets_last_exit_code_after_failure() -> None:
         "bash: cd: /does-not-exist: No such file or directory"
     )
     assert eng.last_exit_code == 1
-    assert eng.try_fast_path("pwd") == "/root"
+    assert eng.try_fast_path("pwd") == "/"
     assert eng.last_exit_code == 0
 
 

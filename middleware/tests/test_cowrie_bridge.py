@@ -47,7 +47,7 @@ async def test_fast_path_command_served_without_llm(config: Config) -> None:
         assert resp.status == 200
         body = await resp.json()
         content = body["choices"][0]["message"]["content"]
-        assert content == "/root"
+        assert content == "/"
     finally:
         await client.close()
 
@@ -74,7 +74,7 @@ async def test_different_sessions_do_not_share_state(config: Config) -> None:
         resp = await client.post("/v1/chat/completions", json=_chat_payload("pwd", "s2"))
         body = await resp.json()
         content = body["choices"][0]["message"]["content"]
-        assert content == "/root"  # s2 never cd'd, still at default cwd
+        assert content == "/"  # s2 never cd'd, still at default cwd
     finally:
         await client.close()
 
@@ -112,9 +112,9 @@ async def test_session_end_drops_state(config: Config) -> None:
         await client.post("/v1/chat/completions", json=_chat_payload("cd /tmp", "s1"))
         resp = await client.delete("/v1/sessions/s1")
         assert resp.status == 200
-        # After dropping, a fresh session starts back at /root.
+        # After dropping, a fresh session starts back at /.
         resp2 = await client.post("/v1/chat/completions", json=_chat_payload("pwd", "s1"))
         body = await resp2.json()
-        assert body["choices"][0]["message"]["content"] == "/root"
+        assert body["choices"][0]["message"]["content"] == "/"
     finally:
         await client.close()
