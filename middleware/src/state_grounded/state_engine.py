@@ -10,13 +10,30 @@ from dataclasses import dataclass
 _VAR_PATTERN = re.compile(r"\$\{(\w+)\}|\$(\w+)")
 
 
-@dataclass(frozen=True)
+@dataclass
 class _VfsNode:
     kind: str
+    mode: int = 0o755
 
     @property
     def is_dir(self) -> bool:
         return self.kind == "dir"
+
+    @property
+    def mode_str(self) -> str:
+        if self.is_dir:
+            return "d" + self._perm_str(self.mode)
+        return "-" + self._perm_str(self.mode)
+
+    @staticmethod
+    def _perm_str(mode: int) -> str:
+        r = ""
+        for who in (6, 3, 0):
+            m = (mode >> who) & 7
+            r += "r" if m & 4 else "-"
+            r += "w" if m & 2 else "-"
+            r += "x" if m & 1 else "-"
+        return r
 
 
 @dataclass
@@ -47,11 +64,62 @@ class StateEngine:
     def __init__(self) -> None:
         self._nodes: dict[str, _VfsNode] = {"/": _VfsNode("dir")}
         self._children: dict[str, set[str]] = {"/": set()}
-        for path in ("/tmp", "/var", "/etc", "/home", "/root"):
+        for path in (
+            "/bin",
+            "/boot",
+            "/dev",
+            "/etc",
+            "/etc/ssh",
+            "/etc/systemd",
+            "/etc/nginx",
+            "/etc/apt",
+            "/etc/cron.d",
+            "/home",
+            "/home/user",
+            "/home/user/Desktop",
+            "/home/user/Documents",
+            "/home/user/Downloads",
+            "/home/user/Music",
+            "/home/user/Pictures",
+            "/home/user/Videos",
+            "/home/user/Public",
+            "/home/user/Templates",
+            "/lib",
+            "/media",
+            "/mnt",
+            "/opt",
+            "/proc",
+            "/root",
+            "/root/Desktop",
+            "/root/Documents",
+            "/root/Downloads",
+            "/root/Music",
+            "/root/Pictures",
+            "/root/Videos",
+            "/root/Public",
+            "/root/Templates",
+            "/run",
+            "/sbin",
+            "/srv",
+            "/sys",
+            "/tmp",
+            "/usr",
+            "/usr/bin",
+            "/usr/lib",
+            "/usr/local",
+            "/usr/share",
+            "/usr/include",
+            "/var",
+            "/var/log",
+            "/var/tmp",
+            "/var/cache",
+            "/var/lib",
+            "/var/spool",
+        ):
             self._add_dir(path)
 
-        self.cwd: str = "/root"
-        self.env: dict[str, str] = {"HOME": "/root", "USER": "root", "PWD": "/root"}
+        self.cwd: str = "/"
+        self.env: dict[str, str] = {"HOME": "/root", "USER": "root", "PWD": "/"}
         self.last_exit_code: int = 0
 
     # --- snapshot --------------------------------------------------------
@@ -100,6 +168,8 @@ class StateEngine:
             return self._handle_rm(args)
         if cmd == "whoami":
             return self._handle_whoami(args)
+        if cmd == "chmod":
+            return self._handle_chmod(args)
 
         return None
 
@@ -192,11 +262,20 @@ class StateEngine:
         return ""
 
     def _handle_ls(self, args: list[str]) -> str:
-        if len(args) > 1:
+        flags = set()
+        targets: list[str] = []
+        for arg in args:
+            if arg.startswith("-") and arg != "-":
+                for flag in arg[1:]:
+                    flags.add(flag)
+            else:
+                targets.append(arg)
+
+        if len(targets) > 1:
             self.last_exit_code = 1
             return "ls: too many arguments"
 
-        raw_target = args[0] if args else self.cwd
+        raw_target = targets[0] if targets else self.cwd
         target = self._resolve_path(raw_target)
         node = self._nodes.get(target)
         if node is None:
@@ -205,8 +284,36 @@ class StateEngine:
 
         self.last_exit_code = 0
         if node.is_dir:
-            return "  ".join(self._list_children(target))
+            if "d" in flags:
+                return self._format_entry(target)
+            children = self._list_children(target)
+            if "a" in flags:
+                children = [".", ".."] + children
+            if "l" in flags:
+                return self._format_long_list(children, target)
+            return "  ".join(children)
+        if "l" in flags:
+            return self._format_entry(target)
         return posixpath.basename(target)
+
+    def _format_entry(self, path: str) -> str:
+        node = self._nodes.get(path)
+        if node is None:
+            return ""
+        name = posixpath.basename(path) if path != "/" else "/"
+        return f"{node.mode_str} 1 root root 4096 Jul 21 12:00 {name}"
+
+    def _format_long_list(self, children: list[str], dir_path: str) -> str:
+        lines = []
+        for name in children:
+            if name == ".":
+                lines.append("drwxr-xr-x 2 root root 4096 Jul 21 12:00 .")
+            elif name == "..":
+                lines.append("drwxr-xr-x 2 root root 4096 Jul 21 12:00 ..")
+            else:
+                full = self._join(dir_path, name)
+                lines.append(self._format_entry(full))
+        return "\n".join(lines)
 
     def _handle_touch(self, args: list[str]) -> str:
         if len(args) != 1:
@@ -319,8 +426,133 @@ class StateEngine:
         self.last_exit_code = 0
         return self.env["USER"]
 
+    _CHMOD_FLAGS = {"R", "v", "c", "f"}
+    _CHMOD_MODE_LETTERS = {"r", "w", "x", "u", "g", "o", "a", "s"}
+
+    def _handle_chmod(self, args: list[str]) -> str:
+        if not args:
+            self.last_exit_code = 1
+            return "chmod: missing operand"
+
+        recursive = False
+        mode_spec: str | None = None
+        targets_raw: list[str] = []
+
+        for arg in args:
+            if mode_spec is None and arg.startswith("-") and arg != "-":
+                rest = arg[1:]
+                if len(rest) == 1 and rest in self._CHMOD_FLAGS:
+                    for flag in rest:
+                        if flag == "R" or flag == "r":
+                            recursive = True
+                            continue
+                        self.last_exit_code = 1
+                        return f"chmod: invalid option -- '{arg}'"
+                elif len(rest) == 1 and rest in self._CHMOD_MODE_LETTERS:
+                    mode_spec = arg
+                elif any(c in arg for c in "+-="):
+                    mode_spec = arg
+                else:
+                    for flag in rest:
+                        if flag == "R" or flag == "r":
+                            recursive = True
+                            continue
+                        self.last_exit_code = 1
+                        return f"chmod: invalid option -- '{arg}'"
+            elif mode_spec is None:
+                mode_spec = arg
+            else:
+                targets_raw.append(arg)
+
+        if mode_spec is None:
+            self.last_exit_code = 1
+            return "chmod: missing operand"
+        if not targets_raw:
+            self.last_exit_code = 1
+            return "chmod: missing operand"
+
+        parsed = self._parse_chmod_mode(mode_spec)
+        if parsed is None:
+            self.last_exit_code = 1
+            return f"chmod: invalid mode: '{mode_spec}'"
+
+        delta, set_mask, clear_mask = parsed
+
+        for raw_target in targets_raw:
+            target = self._resolve_path(raw_target)
+            node = self._nodes.get(target)
+            if node is None:
+                self.last_exit_code = 1
+                return f"chmod: cannot access '{raw_target}': No such file or directory"
+            if recursive and node.is_dir:
+                self._chmod_recursive(target, delta, set_mask, clear_mask)
+            else:
+                self._apply_chmod(node, delta, set_mask, clear_mask)
+
+        self.last_exit_code = 0
+        return ""
+
+    def _parse_chmod_mode(self, spec: str):
+        if spec.isdigit() and len(spec) in (3, 4):
+            try:
+                return ("=", int(spec, 8), 0)
+            except ValueError:
+                return None
+        delta = None
+        if "+" in spec:
+            delta = "+"
+            parts = spec.split("+", 1)
+        elif "-" in spec:
+            delta = "-"
+            parts = spec.split("-", 1)
+        elif "=" in spec:
+            delta = "="
+            parts = spec.split("=", 1)
+        else:
+            return None
+        who_str = parts[0] or "a"
+        perm_str = parts[1]
+        who = 0
+        if "u" in who_str:
+            who |= 0o700
+        if "g" in who_str:
+            who |= 0o070
+        if "o" in who_str:
+            who |= 0o007
+        if "a" in who_str or who == 0:
+            who = 0o777
+        perm = 0
+        if "r" in perm_str:
+            perm |= 0o444
+        if "w" in perm_str:
+            perm |= 0o222
+        if "x" in perm_str:
+            perm |= 0o111
+        if "s" in perm_str:
+            perm |= 0o4000
+        return (delta, who & perm, who & perm)
+
+    def _chmod_recursive(self, path: str, delta: str, set_mask: int, clear_mask: int) -> None:
+        node = self._nodes.get(path)
+        if node:
+            self._apply_chmod(node, delta, set_mask, clear_mask)
+        if node and node.is_dir:
+            for child in self._children.get(path, set()):
+                self._chmod_recursive(self._join(path, child), delta, set_mask, clear_mask)
+
+    @staticmethod
+    def _apply_chmod(node: _VfsNode, delta: str, set_mask: int, clear_mask: int) -> None:
+        if delta == "+":
+            node.mode |= set_mask
+        elif delta == "-":
+            node.mode &= ~clear_mask
+        elif delta == "=":
+            node.mode = set_mask
+
     # --- helpers ---------------------------------------------------------
     def _resolve_path(self, path: str) -> str:
+        if path == "~" or path.startswith("~/"):
+            path = self.env.get("HOME", "/root") + path[1:]
         base = path if path.startswith("/") else posixpath.join(self.cwd, path)
         normalized = posixpath.normpath(base)
         return normalized if normalized.startswith("/") else f"/{normalized}"
@@ -342,14 +574,14 @@ class StateEngine:
 
     def _add_dir(self, path: str) -> None:
         parent, name = self._split(path)
-        self._nodes[path] = _VfsNode("dir")
+        self._nodes[path] = _VfsNode("dir", 0o755)
         self._children.setdefault(path, set())
         if path != "/":
             self._children.setdefault(parent, set()).add(name)
 
     def _add_file(self, path: str) -> None:
         parent, name = self._split(path)
-        self._nodes[path] = _VfsNode("file")
+        self._nodes[path] = _VfsNode("file", 0o644)
         self._children.setdefault(parent, set()).add(name)
 
     def _list_children(self, path: str) -> list[str]:

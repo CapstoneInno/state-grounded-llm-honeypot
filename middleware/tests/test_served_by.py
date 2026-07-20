@@ -21,7 +21,7 @@ def test_deterministic_command_tagged_fast_path() -> None:
     assert event.served_by == FAST_PATH == "fast-path"
     assert event.input == "pwd"
     assert event.session == "sess-1"
-    assert reply == "/root"
+    assert reply == "/"
 
 
 def test_unknown_command_tagged_llm(monkeypatch) -> None:
@@ -56,7 +56,7 @@ def test_event_log_writes_served_by_jsonl() -> None:
     assert record["served_by"] == "fast-path"
     assert record["input"] == "pwd"
     assert record["session"] == "sess-9"
-    assert record["cwd"] == "/root"
+    assert record["cwd"] == "/"
     assert "timestamp" in record
 
 
