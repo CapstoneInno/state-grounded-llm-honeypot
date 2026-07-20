@@ -42,7 +42,7 @@ def test_fast_path_and_ollama_command() -> None:
     )
 
     assert event.served_by == "fast-path"
-    assert reply == "/root"
+    assert reply == "/"
 
     reply, event = process_command(
         engine,

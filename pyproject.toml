@@ -11,6 +11,8 @@ extend-exclude = [
   "htmlcov",
   "cowrie/var",
   "cowrie/data",
+  "cowrie-source",
+  "cowrie-shell-source",
 ]
 
 [tool.ruff.lint]
