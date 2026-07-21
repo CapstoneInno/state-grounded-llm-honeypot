@@ -31,14 +31,13 @@ services:
     depends_on:
       ollama:
         condition: service_healthy
-    command: |
-      echo "==> Pulling ${OLLAMA_MODEL:-qwen2.5:3b}..." &&
-      ollama pull ${OLLAMA_MODEL:-qwen2.5:3b} &&
-      echo "==> Warming up ${OLLAMA_MODEL:-qwen2.5:3b}..." &&
-      curl -s -X POST http://ollama:11434/api/generate \
-        -H "Content-Type: application/json" \
-        -d "{\"model\": \"${OLLAMA_MODEL:-qwen2.5:3b}\", \"prompt\": \"hi\", \"stream\": false, \"keep_alive\": -1}" &&
-      echo "==> Model ready"
+    command:
+      - |
+        echo "==> Pulling ${OLLAMA_MODEL:-qwen2.5:3b}..." &&
+        ollama pull ${OLLAMA_MODEL:-qwen2.5:3b} &&
+        echo "==> Warming up ${OLLAMA_MODEL:-qwen2.5:3b}..." &&
+        ollama run ${OLLAMA_MODEL:-qwen2.5:3b} "hi" &&
+        echo "==> Model ready"
     restart: on-failure
 
   # --- state-tracking middleware + dashboard API -------------------------
